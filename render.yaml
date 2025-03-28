@@ -4,9 +4,10 @@ services:
     env: docker
     region: ohio
     plan: free
-    healthCheckPath: /
+    healthCheckPath: /health
+    healthCheckTimeout: 60
     buildCommand: docker build -t object-recognition .
-    startCommand: docker run -p $PORT:10000 -e PORT=$PORT object-recognition
+    startCommand: docker run -p $PORT:10000 -e PORT=$PORT -e DEBUG=true object-recognition
     envVars:
       - key: PYTHON_VERSION
         value: 3.10.13
@@ -14,6 +15,8 @@ services:
         value: yolov8n.pt
       - key: SECRET_KEY
         generateValue: true
+      - key: DEBUG
+        value: true
     scaling:
       minInstances: 1
       maxInstances: 1

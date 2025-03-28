@@ -35,14 +35,23 @@ socketio = SocketIO(
     manage_session=False
 )
 
+# Global variable to store initialization status
+app_status = {
+    'detector_initialized': False,
+    'error_message': None
+}
+
 # Initialize the object detector
 try:
     logger.info("Initializing object detector...")
     detector = ObjectDetector(model_name="yolov8n.pt")
+    app_status['detector_initialized'] = True
     logger.info(f"Object detector initialized successfully. Using device: {detector.device}")
 except Exception as e:
-    logger.error(f"Error initializing object detector: {str(e)}")
-    sys.exit(1)
+    error_msg = f"Error initializing object detector: {str(e)}"
+    logger.error(error_msg)
+    app_status['error_message'] = error_msg
+    # Don't exit, let the app start anyway
 
 # Add thread lock for thread-safe processing
 thread_lock = Lock()
@@ -54,10 +63,28 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint."""
+    status = {
+        'status': 'healthy' if app_status['detector_initialized'] else 'unhealthy',
+        'error': app_status['error_message'],
+        'detector_initialized': app_status['detector_initialized'],
+        'python_version': sys.version,
+        'env_vars': {
+            'PORT': os.environ.get('PORT'),
+            'HOST': os.environ.get('HOST'),
+            'YOLO_MODEL': os.environ.get('YOLO_MODEL')
+        }
+    }
+    return json.dumps(status), 200 if app_status['detector_initialized'] else 500
+
 @app.route('/')
 def index():
     """Serve the index HTML page."""
     logger.info("Serving index page")
+    if not app_status['detector_initialized']:
+        return f"Application Error: {app_status['error_message']}", 500
     return render_template('index.html')
 
 @socketio.on('connect')
