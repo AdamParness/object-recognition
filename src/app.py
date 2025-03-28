@@ -21,20 +21,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key')
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
-socketio = SocketIO(app, 
-                   cors_allowed_origins="*", 
-                   async_mode='eventlet', 
-                   ping_timeout=10, 
-                   ping_interval=5,
-                   logger=True,
-                   engineio_logger=True)
+
+# Configure SocketIO with more lenient settings for Render
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode='eventlet',
+    ping_timeout=60,
+    ping_interval=25,
+    max_http_buffer_size=1e8,
+    manage_session=False
+)
 
 # Initialize the object detector
 try:
     logger.info("Initializing object detector...")
-    model_name = os.getenv('YOLO_MODEL', 'yolov8s.pt')
-    detector = ObjectDetector(model_name=model_name)
+    detector = ObjectDetector(model_name="yolov8n.pt")
     logger.info(f"Object detector initialized successfully. Using device: {detector.device}")
 except Exception as e:
     logger.error(f"Error initializing object detector: {str(e)}")
@@ -53,12 +57,14 @@ signal.signal(signal.SIGINT, signal_handler)
 @app.route('/')
 def index():
     """Serve the index HTML page."""
+    logger.info("Serving index page")
     return render_template('index.html')
 
 @socketio.on('connect')
 def handle_connect():
     """Handle client connection."""
     logger.info('Client connected')
+    emit('status', {'message': 'Connected to server'})
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -131,16 +137,16 @@ def find_free_port(start_port=8000, max_port=9000):
 
 if __name__ == '__main__':
     try:
-        port = int(os.environ.get('PORT', 8000))
+        port = int(os.environ.get('PORT', 10000))
         host = os.environ.get('HOST', '0.0.0.0')
         
-        print(f"Starting server on {host}:{port}")
-        print("Press Ctrl+C to stop the server")
-        socketio.run(app, 
+        logger.info(f"Starting server on {host}:{port}")
+        socketio.run(app,
                     host=host,
                     port=port,
                     debug=False,
-                    allow_unsafe_werkzeug=True)
+                    allow_unsafe_werkzeug=True,
+                    log_output=True)
     except Exception as e:
-        print(f"Error starting server: {str(e)}")
+        logger.error(f"Error starting server: {str(e)}", exc_info=True)
         sys.exit(1) 
