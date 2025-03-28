@@ -28,8 +28,9 @@ class ObjectDetector:
             logger.info(f"Loading model from {model_name}")
             self.model = YOLO(model_name)
             
-            # Convert to half precision after successful load
-            logger.info("Converting model to half precision")
+            # Set model to evaluation mode and configure for inference
+            logger.info("Configuring model for inference")
+            self.model.model.eval()
             with torch.no_grad():
                 self.model.model.half()
             torch.set_grad_enabled(False)
@@ -50,16 +51,22 @@ class ObjectDetector:
         """Detect objects in a frame."""
         try:
             with self.lock:
+                # Ensure frame is in correct format (BGR)
+                if len(frame.shape) != 3 or frame.shape[2] != 3:
+                    logger.error(f"Invalid frame shape: {frame.shape}")
+                    return []
+                
                 # Run inference with half precision
                 logger.debug(f"Running inference on frame shape: {frame.shape}")
                 with torch.no_grad():
                     results = self.model.predict(
                         source=frame,
-                        conf=0.25,  # NMS confidence threshold
+                        conf=0.15,  # Lower confidence threshold
                         iou=0.45,   # NMS IoU threshold
                         max_det=20,  # Maximum number of detections per image
                         verbose=False,
-                        half=True  # Use half precision
+                        half=True,  # Use half precision
+                        device=self.device  # Explicitly set device
                     )[0]
                 
                 # Process results
