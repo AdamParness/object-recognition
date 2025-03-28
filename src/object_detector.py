@@ -14,8 +14,8 @@ class ObjectDetector:
         """Initialize the YOLO object detector."""
         logger.info(f"Initializing ObjectDetector with model: {model_name}")
         
-        # Auto-select device if none specified
-        self.device = 'cpu'  # Force CPU for Render deployment
+        # Force CPU for Render deployment
+        self.device = 'cpu'
         logger.info(f"Using device: {self.device}")
             
         try:
@@ -28,11 +28,9 @@ class ObjectDetector:
             logger.info(f"Loading model from {model_name}")
             self.model = YOLO(model_name)
             
-            # Set model to evaluation mode and configure for inference
+            # Set model to evaluation mode
             logger.info("Configuring model for inference")
             self.model.model.eval()
-            with torch.no_grad():
-                self.model.model.half()
             torch.set_grad_enabled(False)
             
             logger.info("YOLO model loaded successfully")
@@ -56,7 +54,7 @@ class ObjectDetector:
                     logger.error(f"Invalid frame shape: {frame.shape}")
                     return []
                 
-                # Run inference with half precision
+                # Run inference
                 logger.debug(f"Running inference on frame shape: {frame.shape}")
                 with torch.no_grad():
                     results = self.model.predict(
@@ -65,7 +63,6 @@ class ObjectDetector:
                         iou=0.45,   # NMS IoU threshold
                         max_det=20,  # Maximum number of detections per image
                         verbose=False,
-                        half=True,  # Use half precision
                         device=self.device  # Explicitly set device
                     )[0]
                 
