@@ -19,10 +19,21 @@ class ObjectDetector:
         logger.info(f"Using device: {self.device}")
             
         try:
-            # Load model - use half precision for memory efficiency
+            # Check if model exists
+            if not os.path.exists(model_name):
+                logger.error(f"Model file not found at {model_name}")
+                raise FileNotFoundError(f"Model file not found at {model_name}")
+                
+            # Load model with error handling
+            logger.info(f"Loading model from {model_name}")
             self.model = YOLO(model_name)
-            self.model.model.half()  # Convert to half precision
-            torch.set_grad_enabled(False)  # Disable gradients
+            
+            # Convert to half precision after successful load
+            logger.info("Converting model to half precision")
+            with torch.no_grad():
+                self.model.model.half()
+            torch.set_grad_enabled(False)
+            
             logger.info("YOLO model loaded successfully")
             
             # Store class names
@@ -41,14 +52,15 @@ class ObjectDetector:
             with self.lock:
                 # Run inference with half precision
                 logger.debug(f"Running inference on frame shape: {frame.shape}")
-                results = self.model.predict(
-                    source=frame,
-                    conf=0.25,  # NMS confidence threshold
-                    iou=0.45,   # NMS IoU threshold
-                    max_det=20,  # Maximum number of detections per image
-                    verbose=False,
-                    half=True  # Use half precision
-                )[0]
+                with torch.no_grad():
+                    results = self.model.predict(
+                        source=frame,
+                        conf=0.25,  # NMS confidence threshold
+                        iou=0.45,   # NMS IoU threshold
+                        max_det=20,  # Maximum number of detections per image
+                        verbose=False,
+                        half=True  # Use half precision
+                    )[0]
                 
                 # Process results
                 detections = []
