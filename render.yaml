@@ -2,14 +2,17 @@ services:
   - type: web
     name: object-recognition
     env: docker
-    region: ohio  # Choose the region closest to you
+    region: ohio
     plan: free
     healthCheckPath: /
+    buildCommand: docker build -t object-recognition .
+    startCommand: docker run -p $PORT:10000 object-recognition
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
       - key: YOLO_MODEL
         value: yolov8n.pt
-      - key: PORT
-        value: 8000
     scaling:
       minInstances: 1
-      maxInstances: 1 
+      maxInstances: 1
+    autoDeploy: true 
