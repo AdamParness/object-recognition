@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: object-recognition
+    env: docker
+    region: ohio  # Choose the region closest to you
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: YOLO_MODEL
+        value: yolov8n.pt
+      - key: PORT
+        value: 8000
+    scaling:
+      minInstances: 1
+      maxInstances: 1 

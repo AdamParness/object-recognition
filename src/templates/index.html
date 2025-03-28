@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Object Recognition</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        .container {
+            position: relative;
+            margin: 20px;
+        }
+        #videoElement {
+            border: 2px solid #333;
+            border-radius: 8px;
+        }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Real-time Object Recognition</h1>
+    <div id="connectionStatus" class="status">Connecting...</div>
+    <div class="container">
+        <video id="videoElement" width="640" height="480" autoplay></video>
+        <canvas id="overlay" width="640" height="480"></canvas>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoElement');
+        const overlay = document.getElementById('overlay');
+        const ctx = overlay.getContext('2d');
+        const status = document.getElementById('connectionStatus');
+        let socket = null;
+        let isStreaming = false;
+        let frameCount = 0;
+        let lastFrameTime = Date.now();
+
+        // Initialize WebSocket connection
+        function initializeSocket() {
+            console.log('Initializing socket connection...');
+            socket = io({
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                reconnectionAttempts: 5
+            });
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                status.textContent = 'Connected';
+                status.style.backgroundColor = '#d4edda';
+                isStreaming = true;  // Resume streaming when connected
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                status.textContent = 'Disconnected - Attempting to reconnect...';
+                status.style.backgroundColor = '#f8d7da';
+                isStreaming = false;  // Pause streaming when disconnected
+            });
+
+            socket.on('detections', (data) => {
+                console.log(`Received ${data.detections.length} detections:`, data.detections);
+                drawDetections(data.detections);
+            });
+
+            socket.on('error', (data) => {
+                console.error('Server error:', data.message);
+                status.textContent = 'Server Error: ' + data.message;
+                status.style.backgroundColor = '#f8d7da';
+            });
+
+            socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                status.textContent = 'Connection Error';
+                status.style.backgroundColor = '#f8d7da';
+            });
+        }
+
+        // Initialize webcam
+        async function initializeWebcam() {
+            console.log('Initializing webcam...');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: 640,
+                        height: 480
+                    } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    console.log('Webcam stream loaded');
+                    isStreaming = true;
+                    startVideoProcessing();
+                };
+            } catch (err) {
+                console.error('Error accessing webcam:', err);
+                status.textContent = 'Error accessing webcam';
+                status.style.backgroundColor = '#f8d7da';
+            }
+        }
+
+        // Process video frames
+        function startVideoProcessing() {
+            console.log('Starting video processing...');
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+
+            let lastFrameTime = Date.now();
+            let frameCount = 0;
+            let processingFrame = false;  // Flag to prevent frame overlap
+
+            setInterval(() => {
+                if (isStreaming && socket && socket.connected && !processingFrame) {
+                    processingFrame = true;  // Set flag to prevent overlap
+                    
+                    frameCount++;
+                    const now = Date.now();
+                    if (frameCount % 30 === 0) {
+                        const fps = 1000 / ((now - lastFrameTime) / 30);
+                        console.log(`Current FPS: ${fps.toFixed(1)}`);
+                        lastFrameTime = now;
+                    }
+
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const frame = canvas.toDataURL('image/jpeg', 0.8);  // Reduced quality for better performance
+                    
+                    socket.emit('frame', frame, () => {
+                        processingFrame = false;  // Reset flag when frame is processed
+                    });
+                }
+            }, 50);  // 20 FPS target
+        }
+
+        // Draw detection boxes and labels
+        function drawDetections(detections) {
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+            
+            detections.forEach(det => {
+                const [x1, y1, x2, y2] = det.bbox;
+                const label = `${det.label} ${(det.confidence * 100).toFixed(1)}%`;
+
+                // Draw box
+                ctx.strokeStyle = '#00ff00';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+                // Draw label background
+                ctx.fillStyle = '#00ff00';
+                const textWidth = ctx.measureText(label).width;
+                ctx.fillRect(x1, y1 - 20, textWidth + 10, 20);
+
+                // Draw label text
+                ctx.fillStyle = '#000000';
+                ctx.font = '16px Arial';
+                ctx.fillText(label, x1 + 5, y1 - 5);
+            });
+        }
+
+        // Start everything
+        console.log('Starting application...');
+        initializeSocket();
+        initializeWebcam();
+    </script>
+</body>
+</html> 

@@ -1,6 +1,9 @@
-torch>=2.0.0
-torchvision>=0.15.0
-opencv-python>=4.8.0
-numpy>=1.24.0
-Pillow>=10.0.0
-ultralytics  # For YOLO 
+Flask==3.0.2
+flask-socketio==5.3.6
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+ultralytics==8.1.28
+python-engineio==4.9.0
+python-socketio==5.11.1
+eventlet==0.35.1
+gunicorn==21.2.0 
