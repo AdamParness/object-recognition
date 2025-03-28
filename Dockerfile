@@ -15,6 +15,9 @@ RUN pip install -r requirements.txt
 # Copy application code
 COPY src/ src/
 
+# Add src directory to Python path
+ENV PYTHONPATH=/app/src:$PYTHONPATH
+
 # Set environment variables
 ENV PORT=10000
 ENV PYTHONUNBUFFERED=1
@@ -26,4 +29,5 @@ CMD gunicorn --worker-class eventlet -w 1 \
     --error-logfile - \
     --access-logfile - \
     --bind 0.0.0.0:$PORT \
-    src.app:app 
+    --chdir /app/src \
+    app:app 
