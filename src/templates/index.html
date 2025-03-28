@@ -166,15 +166,37 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
+                // Set up text properties
+                ctx.font = '16px Arial';
+                const textWidth = ctx.measureText(label).width;
+                const textHeight = 20;
+                const padding = 5;
+
+                // Determine if box is in top half of screen
+                const isTopHalf = y1 < overlay.height / 2;
+
+                // Calculate label position
+                let labelX = x1 + padding;
+                let labelY;
+                let rectY;
+
+                if (isTopHalf) {
+                    // Position label inside box at top
+                    labelY = y1 + textHeight;
+                    rectY = y1;
+                } else {
+                    // Position label above box
+                    labelY = y1 - padding;
+                    rectY = y1 - textHeight - padding;
+                }
+
                 // Draw label background
                 ctx.fillStyle = '#00ff00';
-                const textWidth = ctx.measureText(label).width;
-                ctx.fillRect(x1, y1 - 20, textWidth + 10, 20);
+                ctx.fillRect(labelX - padding, rectY, textWidth + (padding * 2), textHeight);
 
                 // Draw label text
                 ctx.fillStyle = '#000000';
-                ctx.font = '16px Arial';
-                ctx.fillText(label, x1 + 5, y1 - 5);
+                ctx.fillText(label, labelX, labelY);
             });
         }
 
