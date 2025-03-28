@@ -44,7 +44,9 @@ app_status = {
 # Initialize the object detector
 try:
     logger.info("Initializing object detector...")
-    detector = ObjectDetector(model_name="yolov8n.pt")
+    model_path = os.environ.get('YOLO_MODEL', 'yolov8n.pt')
+    logger.info(f"Using model path: {model_path}")
+    detector = ObjectDetector(model_name=model_path)
     app_status['detector_initialized'] = True
     logger.info(f"Object detector initialized successfully. Using device: {detector.device}")
 except Exception as e:
