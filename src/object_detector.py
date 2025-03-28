@@ -5,25 +5,24 @@ import cv2
 from typing import List, Dict
 from threading import Lock
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 class ObjectDetector:
-    def __init__(self, model_name: str = "yolov8n.pt", device: str = None):
+    def __init__(self, model_name: str = "yolov8n.pt"):
         """Initialize the YOLO object detector."""
         logger.info(f"Initializing ObjectDetector with model: {model_name}")
         
         # Auto-select device if none specified
-        if device is None:
-            self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        else:
-            self.device = device
-            
+        self.device = 'cpu'  # Force CPU for Render deployment
         logger.info(f"Using device: {self.device}")
             
         try:
-            # Load model
+            # Load model - use half precision for memory efficiency
             self.model = YOLO(model_name)
+            self.model.model.half()  # Convert to half precision
+            torch.set_grad_enabled(False)  # Disable gradients
             logger.info("YOLO model loaded successfully")
             
             # Store class names
@@ -40,14 +39,15 @@ class ObjectDetector:
         """Detect objects in a frame."""
         try:
             with self.lock:
-                # Run inference
+                # Run inference with half precision
                 logger.debug(f"Running inference on frame shape: {frame.shape}")
                 results = self.model.predict(
                     source=frame,
                     conf=0.25,  # NMS confidence threshold
                     iou=0.45,   # NMS IoU threshold
                     max_det=20,  # Maximum number of detections per image
-                    verbose=False
+                    verbose=False,
+                    half=True  # Use half precision
                 )[0]
                 
                 # Process results
